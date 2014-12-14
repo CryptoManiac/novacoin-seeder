@@ -7,7 +7,7 @@
 #include "uint256.h"
 
 #define BITCOIN_SEED_NONCE  0x0539a019ca550825
-#define REQUIRE_HEIGHT 0
+#define REQUIRE_HEIGHT 142000
 #define MIN_VERSION 40000
 
 using namespace std;
@@ -107,7 +107,11 @@ class CNode {
         vRecv >> strSubVer;
       if (nVersion >= 209 && !vRecv.empty())
         vRecv >> nStartingHeight;
-      
+      if (nStartingHeight && nStartingHeight < REQUIRE_HEIGHT) {
+          // give them a day to catch up
+          ban = 86400;
+          return true;
+      }
       if (nVersion >= 209) {
         BeginMessage("verack");
         EndMessage();
