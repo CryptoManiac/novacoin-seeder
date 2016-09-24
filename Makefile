@@ -1,13 +1,31 @@
-CXXFLAGS = -O3 -g0 -march=native
-LDFLAGS = $(CXXFLAGS)
+LINK:=$(CXX)
 
-dnsseed: dns.o bitcoin.o netbase.o protocol.o db.o main.o util.o
-	g++ -pthread $(LDFLAGS) -o dnsseed dns.o bitcoin.o netbase.o protocol.o db.o main.o util.o -lcrypto
+LIBS = -lcrypto
+OBJS = obj/bitcoin.o obj/db.o obj/dns.o obj/main.o obj/netbase.o obj/protocol.o obj/util.o
 
-%.o: %.cpp bitcoin.h netbase.h protocol.h db.h serialize.h uint256.h util.h
-	g++ -DUSE_IPV6 -pthread $(CXXFLAGS) -Wno-invalid-offsetof -c -o $@ $<
+all: dnsseed
 
-dns.o: dns.c
-	gcc -pthread -std=c99 $(CXXFLAGS) dns.c -c -o dns.o
+-include obj/*.P
 
-%.o: %.cpp
+obj/dns.o: dns.c
+	$(CC) -c -pthread -std=c99 -MMD -MF $(@:%.o=%.d) -o $@ $<
+	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
+	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
+	  rm -f $(@:%.o=%.d)
+
+obj/%.o: %.cpp
+	$(CXX) -c -DUSE_IPV6 -pthread -Wno-invalid-offsetof -MMD -MF $(@:%.o=%.d) -o $@ $<
+	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
+	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
+	  rm -f $(@:%.o=%.d)
+
+dnsseed: $(OBJS:obj/%=obj/%)
+	$(LINK) -pthread -o $@ $^ $(LIBS)
+
+
+clean:
+	rm -f obj/*.o
+	rm -f obj/*.P
+	rm -f dnsseed
